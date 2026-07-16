@@ -34,12 +34,19 @@ app.post(
   "/uploads/:token",
   express.raw({ type: "*/*", limit: "10mb" }),
   (req: Request, res: Response) => {
+    const uploadToken = Array.isArray(req.params.token)
+      ? req.params.token[0]
+      : req.params.token;
+    if (!uploadToken) {
+      res.status(400).json({ error: "missing_upload_token" });
+      return;
+    }
     if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
       res.status(400).json({ error: "empty_upload" });
       return;
     }
     const stored = uploadStore.put(
-      req.params.token,
+      uploadToken,
       req.body,
       req.headers["content-type"],
       typeof req.headers["x-filename"] === "string"
@@ -50,7 +57,7 @@ app.post(
       res.status(404).json({ error: "invalid_or_expired_upload" });
       return;
     }
-    res.status(201).json({ uploaded: true, token: req.params.token });
+    res.status(201).json({ uploaded: true, token: uploadToken });
   },
 );
 

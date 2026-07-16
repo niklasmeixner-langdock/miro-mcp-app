@@ -146,7 +146,7 @@ export function createOAuthRouter(config: Config, store: OAuthStore): Router {
       .filter((item) => MCP_SCOPES.includes(item))
       .join(" ");
     const state = store.putPending({
-      clientId,
+      clientId: client.clientId,
       redirectUri,
       codeChallenge,
       resource: asString(req.query.resource),
