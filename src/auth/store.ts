@@ -64,18 +64,20 @@ export class OAuthStore {
   private readonly access = new Map<string, AccessGrant>();
   private readonly refresh = new Map<string, RefreshGrant>();
 
+  constructor(private readonly clientSigningSecret: string) {}
+
   registerClient(input: Omit<OAuthClient, "clientId" | "clientSecret">): OAuthClient {
+    const clientId = this.signClient(input);
     const client: OAuthClient = {
       ...input,
-      clientId: randomToken(18),
-      clientSecret: randomToken(24),
+      clientId,
     };
     this.clients.set(client.clientId, client);
     return client;
   }
 
   getClient(clientId: string): OAuthClient | undefined {
-    return this.clients.get(clientId);
+    return this.clients.get(clientId) ?? this.verifyClient(clientId);
   }
 
   putPending(input: Omit<PendingAuthorization, "state" | "createdAt">): string {
@@ -164,6 +166,57 @@ export class OAuthStore {
       expiresAt: Date.now() + REFRESH_TTL_MS,
     });
     return { accessToken, refreshToken, grant };
+  }
+
+  private signClient(
+    input: Omit<OAuthClient, "clientId" | "clientSecret">,
+  ): string {
+    const payload = Buffer.from(
+      JSON.stringify({
+        redirectUris: input.redirectUris,
+        clientName: input.clientName,
+        issuedAt: Date.now(),
+      }),
+    ).toString("base64url");
+    const signature = crypto
+      .createHmac("sha256", this.clientSigningSecret)
+      .update(payload)
+      .digest("base64url");
+    return `${payload}.${signature}`;
+  }
+
+  private verifyClient(clientId: string): OAuthClient | undefined {
+    const [payload, signature] = clientId.split(".", 2);
+    if (!payload || !signature) return undefined;
+    const expected = crypto
+      .createHmac("sha256", this.clientSigningSecret)
+      .update(payload)
+      .digest("base64url");
+    if (
+      signature.length !== expected.length ||
+      !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
+    ) {
+      return undefined;
+    }
+    try {
+      const parsed = JSON.parse(
+        Buffer.from(payload, "base64url").toString("utf8"),
+      ) as { redirectUris?: unknown; clientName?: unknown };
+      if (
+        !Array.isArray(parsed.redirectUris) ||
+        !parsed.redirectUris.every((uri) => typeof uri === "string")
+      ) {
+        return undefined;
+      }
+      return {
+        clientId,
+        redirectUris: parsed.redirectUris,
+        clientName:
+          typeof parsed.clientName === "string" ? parsed.clientName : undefined,
+      };
+    } catch {
+      return undefined;
+    }
   }
 }
 

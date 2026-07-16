@@ -16,7 +16,11 @@ import { ArtifactStore } from "./tools/artifacts.js";
 import { UploadStore } from "./tools/uploads.js";
 
 const config = loadConfig();
-const oauthStore = new OAuthStore();
+const oauthStore = new OAuthStore(
+  config.tokenEncryptionKey ||
+    config.miroClientSecret ||
+    "miro-mcp-app-development-client-signing-key",
+);
 const artifactStore = new ArtifactStore();
 const uploadStore = new UploadStore();
 const app = express();

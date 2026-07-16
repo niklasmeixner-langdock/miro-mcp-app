@@ -108,13 +108,12 @@ export function createOAuthRouter(config: Config, store: OAuthStore): Router {
     });
     res.status(201).json({
       client_id: client.clientId,
-      client_secret: client.clientSecret,
       client_id_issued_at: Math.floor(Date.now() / 1000),
       redirect_uris: client.redirectUris,
       client_name: client.clientName,
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
-      token_endpoint_auth_method: "client_secret_post",
+      token_endpoint_auth_method: "none",
     });
   });
 
