@@ -140,6 +140,7 @@
       let state = {};
       let selected;
       let scale = 1;
+      let refreshing = false;
 
       const el = (id) => document.getElementById(id);
       const canvas = el("canvas");
@@ -156,6 +157,7 @@
           throw new Error(result.content?.find((item) => item.type === "text")?.text || "Tool call failed");
         }
         ingest(result.structuredContent || {});
+        return result;
       }
 
       async function openLink(url) {
@@ -171,16 +173,16 @@
 
       function ingest(value) {
         if (!value || typeof value !== "object") return;
-        state = value;
-        const board = value.board || {};
-        const url = value.boardUrl || board.viewLink;
-        el("heading").textContent = board.name || value.title || "Miro workspace";
-        el("subtitle").textContent = value.parity ? `${value.parity} capability` : "Interactive board preview";
+        state = { ...state, ...value };
+        const board = state.board || {};
+        const url = state.boardUrl || board.viewLink;
+        el("heading").textContent = board.name || state.title || "Miro workspace";
+        el("subtitle").textContent = state.parity ? `${state.parity} capability` : "Interactive board preview";
         el("open").hidden = !url;
         el("open").onclick = () => openLink(url);
-        renderBoards(value.boards || []);
-        renderItems(value.items || value.nodes || []);
-        renderWarnings(value.warnings || []);
+        renderBoards(state.boards || []);
+        renderItems(state.items || state.nodes || []);
+        renderWarnings(state.warnings || []);
       }
 
       function renderBoards(boards) {
@@ -266,6 +268,22 @@
         if (result.structuredContent) ingest(result.structuredContent);
       };
       await app.connect(new PostMessageTransport(window.parent, window.parent));
+      if (window.MIRO_DATA) ingest(window.MIRO_DATA);
+      setInterval(async () => {
+        if (refreshing || !state.boardUrl) return;
+        refreshing = true;
+        try {
+          await callTool("board_list_items", {
+            board_url: state.boardUrl,
+            parent_item_id: state.focusedItemId,
+            limit: 200,
+          });
+        } catch (error) {
+          console.warn("Board refresh failed", error);
+        } finally {
+          refreshing = false;
+        }
+      }, 4000);
     </script>
   </body>
 </html>

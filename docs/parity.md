@@ -43,7 +43,9 @@ operations through its public REST API. No private endpoint is used.
 - OAuth 2.1 discovery, dynamic client registration, PKCE S256, refresh tokens,
   resource indicators, and Miro OAuth brokering
 - `code_explain_on_board` and `code_create_from_board` prompts
-- Interactive `ui://miro/workspace` MCP App resource
+- One additional `render_miro_board` tool backed by the interactive
+  `ui://miro/workspace` resource. Parity tools never open separate UI cards;
+  the rendered iframe refreshes itself after board mutations.
 
 Exact official schema parity requires an authorized capture of `initialize`,
 `tools/list`, `prompts/list`, and representative results from

@@ -1,12 +1,13 @@
 import {
   RESOURCE_MIME_TYPE,
   registerAppResource,
+  registerAppTool,
 } from "@modelcontextprotocol/ext-apps/server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import type { Config } from "./config.js";
-import { MiroClient } from "./miro/client.js";
+import { MiroClient, boardUrl, parseBoardReference } from "./miro/client.js";
 import type { MiroCredential } from "./auth/store.js";
 import type { ArtifactStore } from "./tools/artifacts.js";
 import {
@@ -34,6 +35,13 @@ export interface ServerDependencies {
   credential: MiroCredential;
   artifacts: ArtifactStore;
   uploads: UploadStore;
+}
+
+function safeJsonForHtml(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
 }
 
 export function createMcpServer(dependencies: ServerDependencies): McpServer {
@@ -66,6 +74,74 @@ export function createMcpServer(dependencies: ServerDependencies): McpServer {
     artifacts: dependencies.artifacts,
     uploads: dependencies.uploads,
   });
+
+  registerAppTool(
+    server,
+    "render_miro_board",
+    {
+      title: "Render Miro Board",
+      description:
+        "Open one interactive Miro board canvas in the client. Call this once after creating or selecting a board; subsequent board mutations appear inside the same canvas automatically.",
+      inputSchema: {
+        board_url: z.string().min(1).describe("Full Miro board URL or board ID."),
+        limit: z.number().int().min(1).max(500).default(200),
+      },
+      _meta: { ui: { resourceUri: MIRO_APP_RESOURCE_URI } },
+    },
+    async ({ board_url, limit }) => {
+      try {
+        const { boardId, itemId } = parseBoardReference(board_url);
+        const [board, items] = await Promise.all([
+          client.request<Record<string, any>>(
+            `/v2/boards/${encodeURIComponent(boardId)}`,
+          ),
+          client.getAllItems(boardId, {
+            parentItemId: itemId,
+            limit,
+          }),
+        ]);
+        const renderData = {
+          board,
+          boardId,
+          boardUrl: board.viewLink ?? boardUrl(boardId, itemId),
+          focusedItemId: itemId,
+          items,
+          parity: "native",
+          warnings: [],
+        };
+        const html = (await getMiroHtml()).replace(
+          "</head>",
+          `<script>window.MIRO_DATA=${safeJsonForHtml(renderData)};</script></head>`,
+        );
+        return {
+          content: [
+            { type: "text" as const, text: JSON.stringify(renderData) },
+            {
+              type: "resource" as const,
+              resource: {
+                uri: MIRO_APP_RESOURCE_URI,
+                mimeType: RESOURCE_MIME_TYPE,
+                text: html,
+                _meta: UI_META,
+              },
+            },
+          ],
+          structuredContent: renderData,
+          _meta: { "mcpui.dev/ui-initial-render-data": renderData },
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: error instanceof Error ? error.message : String(error),
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
 
   server.registerPrompt(
     "code_explain_on_board",

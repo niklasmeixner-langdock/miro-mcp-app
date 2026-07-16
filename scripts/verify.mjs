@@ -17,6 +17,7 @@ const expectedTools = [
   "image_create", "image_get_data", "image_get_upload_url", "image_get_url",
   "layout_create", "layout_get_dsl", "layout_read", "layout_update",
   "prototype_create", "prototype_read",
+  "render_miro_board",
   "table_create", "table_list_rows", "table_sync_rows",
 ].sort();
 
@@ -49,8 +50,20 @@ await Promise.all([server.connect(serverTransport), client.connect(clientTranspo
 
 const { tools } = await client.listTools();
 const names = tools.map((tool) => tool.name).sort();
-check("registers exactly the documented 31 tools", JSON.stringify(names) === JSON.stringify(expectedTools), names.join(", "));
+check(
+  "registers 31 parity tools plus one render tool",
+  JSON.stringify(names) === JSON.stringify(expectedTools),
+  names.join(", "),
+);
 check("all tools expose object input schemas", tools.every((tool) => tool.inputSchema?.type === "object"));
+check(
+  "only render_miro_board opens the MCP App",
+  tools.every((tool) =>
+    tool.name === "render_miro_board"
+      ? tool._meta?.ui?.resourceUri === "ui://miro/workspace"
+      : !tool._meta?.ui?.resourceUri,
+  ),
+);
 
 const { prompts } = await client.listPrompts();
 const promptNames = prompts.map((prompt) => prompt.name);
@@ -67,6 +80,7 @@ check(
     html.includes("await app.connect") &&
     html.includes("app.callServerTool"),
 );
+check("workspace refreshes one canvas after mutations", html.includes('callTool("board_list_items"'));
 
 const layout = await client.callTool({ name: "layout_get_dsl", arguments: {} });
 check("layout DSL is runtime discoverable", layout.content?.[0]?.text?.includes("Miro Layout DSL v1"));

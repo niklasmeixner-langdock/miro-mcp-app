@@ -1,6 +1,3 @@
-import {
-  registerAppTool,
-} from "@modelcontextprotocol/ext-apps/server";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
@@ -102,7 +99,6 @@ function register(
     description,
     inputSchema,
     annotations: { readOnlyHint: readOnly },
-    ...(ui ? { _meta: { ui: { resourceUri: MIRO_APP_RESOURCE_URI } } } : {}),
   };
   const wrapped = async (args: ToolArgs) => {
     try {
@@ -111,11 +107,8 @@ function register(
       return failure(error);
     }
   };
-  if (ui) {
-    registerAppTool(server, name, options as any, wrapped as any);
-  } else {
-    (server.registerTool as any)(name, options, wrapped);
-  }
+  void ui;
+  (server.registerTool as any)(name, options, wrapped);
 }
 
 function itemEndpoint(type: string): string {

@@ -84,8 +84,10 @@ MIRO_ACCESS_TOKEN=... MIRO_TEAM_ID=... pnpm dev
 
 ## MCP App
 
-Tools that return boards or items attach `ui://miro/workspace`. Compatible hosts
-render an inline workspace with:
+The 31 Miro tools return data without opening UI cards. One additional
+`render_miro_board` tool attaches `ui://miro/workspace` and opens a single
+inline workspace. That iframe refreshes the board after subsequent mutations,
+matching the draw.io server's create-then-render pattern:
 
 - Board search
 - Host-mediated tool calls
@@ -102,8 +104,9 @@ pnpm check
 pnpm verify
 ```
 
-The verification harness checks all 31 tool registrations, prompts, the MCP App
-resource, DSL discovery, and upload URL issuance without making Miro API calls.
+The verification harness checks all 31 parity tools plus the dedicated render
+tool, prompts, the MCP App resource, DSL discovery, and upload URL issuance
+without making Miro API calls.
 
 ## Deployment note
 
