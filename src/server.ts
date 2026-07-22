@@ -45,6 +45,14 @@ function safeJsonForHtml(value: unknown): string {
     .replace(/\u2029/g, "\\u2029");
 }
 
+function escapeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 function extractMiroEmbedUrl(html: string): string {
   const match = html.match(/<iframe[^>]+src=["']([^"']+)["']/i);
   if (!match) throw new Error("Miro oEmbed did not return an iframe.");
@@ -153,10 +161,15 @@ export function createMcpServer(dependencies: ServerDependencies): McpServer {
           parity: "native",
           warnings: [],
         };
-        const html = (await getMiroHtml()).replace(
-          "</head>",
-          `<script>window.MIRO_DATA=${safeJsonForHtml(renderData)};</script></head>`,
-        );
+        const html = (await getMiroHtml())
+          .replace(
+            'id="board"',
+            `id="board" src="${escapeHtmlAttribute(renderData.embedUrl)}"`,
+          )
+          .replace(
+            "</head>",
+            `<script>window.MIRO_DATA=${safeJsonForHtml(renderData)};</script></head>`,
+          );
         return {
           content: [
             { type: "text" as const, text: JSON.stringify(renderData) },

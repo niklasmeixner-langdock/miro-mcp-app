@@ -41,6 +41,15 @@
       allowfullscreen
       referrerpolicy="no-referrer-when-downgrade"
     ></iframe>
+    <script>
+      const miroFrame = document.getElementById("board");
+      const miroStatus = document.getElementById("status");
+      miroFrame.addEventListener("load", () => miroStatus.classList.add("hidden"));
+      miroFrame.addEventListener("error", () => {
+        miroStatus.className = "error";
+        miroStatus.textContent = "Miro Live Embed could not be loaded.";
+      });
+    </script>
     <script type="module">
       import {
         App,
@@ -49,7 +58,7 @@
 
       const frame = document.getElementById("board");
       const status = document.getElementById("status");
-      let currentUrl = "";
+      let currentUrl = frame.getAttribute("src") || "";
 
       function showBoard(data) {
         if (!data?.embedUrl || data.embedUrl === currentUrl) return;
@@ -71,12 +80,6 @@
             error instanceof Error ? error.message : "Unable to load Miro board.";
         }
       }
-
-      frame.addEventListener("load", () => status.classList.add("hidden"));
-      frame.addEventListener("error", () => {
-        status.className = "error";
-        status.textContent = "Miro Live Embed could not be loaded.";
-      });
 
       const app = new App(
         { name: "miro-live-embed", version: "0.2.0" },
