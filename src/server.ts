@@ -21,6 +21,7 @@ const UI_META = {
   ui: {
     csp: {
       connectDomains: ["https://api.miro.com"],
+      frameDomains: ["https://miro.com"],
       resourceDomains: [
         "https://esm.sh",
         "https://miro.com",
@@ -42,6 +43,24 @@ function safeJsonForHtml(value: unknown): string {
     .replace(/</g, "\\u003c")
     .replace(/\u2028/g, "\\u2028")
     .replace(/\u2029/g, "\\u2029");
+}
+
+function extractMiroEmbedUrl(html: string): string {
+  const match = html.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+  if (!match) throw new Error("Miro oEmbed did not return an iframe.");
+  const decoded = match[1]
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+  const url = new URL(decoded);
+  if (
+    url.protocol !== "https:" ||
+    (url.hostname !== "miro.com" && !url.hostname.endsWith(".miro.com"))
+  ) {
+    throw new Error("Miro oEmbed returned an unexpected iframe origin.");
+  }
+  url.searchParams.set("autoplay", "true");
+  return url.toString();
 }
 
 export function createMcpServer(dependencies: ServerDependencies): McpServer {
@@ -81,31 +100,56 @@ export function createMcpServer(dependencies: ServerDependencies): McpServer {
     {
       title: "Render Miro Board",
       description:
-        "Open one interactive Miro board canvas in the client. Call this once after creating or selecting a board; subsequent board mutations appear inside the same canvas automatically.",
+        "Open one full-size Miro Live Embed canvas in the client using Miro's oEmbed API. Call this once after creating or selecting a board; subsequent mutations appear live in the same iframe.",
       inputSchema: {
         board_url: z.string().min(1).describe("Full Miro board URL or board ID."),
-        limit: z.number().int().min(1).max(500).default(200),
+        max_width: z.number().int().min(320).max(2400).default(1600),
+        max_height: z.number().int().min(240).max(1600).default(1000),
       },
       _meta: { ui: { resourceUri: MIRO_APP_RESOURCE_URI } },
     },
-    async ({ board_url, limit }) => {
+    async ({ board_url, max_width, max_height }) => {
       try {
         const { boardId, itemId } = parseBoardReference(board_url);
-        const [board, items] = await Promise.all([
-          client.request<Record<string, any>>(
-            `/v2/boards/${encodeURIComponent(boardId)}`,
-          ),
-          client.getAllItems(boardId, {
-            parentItemId: itemId,
-            limit,
-          }),
-        ]);
+        const board = await client.request<Record<string, any>>(
+          `/v2/boards/${encodeURIComponent(boardId)}`,
+        );
+        const canonicalBoardUrl = board.viewLink ?? boardUrl(boardId, itemId);
+        const oembedUrl = new URL("https://miro.com/api/v1/oembed");
+        oembedUrl.searchParams.set("url", canonicalBoardUrl);
+        oembedUrl.searchParams.set("format", "json");
+        oembedUrl.searchParams.set("maxwidth", String(max_width));
+        oembedUrl.searchParams.set("maxheight", String(max_height));
+        const oembedResponse = await fetch(oembedUrl, {
+          headers: { accept: "application/json" },
+        });
+        if (!oembedResponse.ok) {
+          throw new Error(
+            `Miro oEmbed request failed (${oembedResponse.status}).`,
+          );
+        }
+        const oembed = (await oembedResponse.json()) as {
+          html?: string;
+          title?: string;
+          width?: number;
+          height?: number;
+          thumbnail_url?: string;
+        };
+        if (!oembed.html) throw new Error("Miro oEmbed returned no HTML.");
+        const embedUrl = new URL(extractMiroEmbedUrl(oembed.html));
+        if (itemId) embedUrl.searchParams.set("moveToWidget", itemId);
         const renderData = {
           board,
           boardId,
-          boardUrl: board.viewLink ?? boardUrl(boardId, itemId),
+          boardUrl: canonicalBoardUrl,
           focusedItemId: itemId,
-          items,
+          embedUrl: embedUrl.toString(),
+          oembed: {
+            title: oembed.title,
+            width: oembed.width,
+            height: oembed.height,
+            thumbnailUrl: oembed.thumbnail_url,
+          },
           parity: "native",
           warnings: [],
         };

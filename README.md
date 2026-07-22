@@ -86,16 +86,15 @@ MIRO_ACCESS_TOKEN=... MIRO_TEAM_ID=... pnpm dev
 
 The 31 Miro tools return data without opening UI cards. One additional
 `render_miro_board` tool attaches `ui://miro/workspace` and opens a single
-inline workspace. That iframe refreshes the board after subsequent mutations,
-matching the draw.io server's create-then-render pattern:
+full-size Miro Live Embed obtained from Miro's official oEmbed endpoint.
+Changes made by subsequent tools appear live inside Miro's own canvas:
 
-- Board search
-- Host-mediated tool calls
-- A geometry-based board preview
-- Item details and parity warnings
-- Safe “Open in Miro” links
+- No reconstructed board items
+- No app sidebars, inspector, or polling
+- Native Miro zooming, navigation, and live updates
 
-The View never receives Miro or MCP access tokens and never calls Miro directly.
+The View receives only Miro's validated live-embed URL; it never receives Miro
+or MCP access tokens.
 
 ## Verification
 

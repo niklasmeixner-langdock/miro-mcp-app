@@ -3,287 +3,89 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Miro workspace</title>
+    <title>Miro Live Embed</title>
     <style>
-      :root {
-        color-scheme: light dark;
-        --bg: light-dark(#f7f7fb, #121318);
-        --panel: light-dark(#fff, #1b1d24);
-        --text: light-dark(#17181d, #f2f3f5);
-        --muted: light-dark(#6b6f7b, #a6a9b3);
-        --line: light-dark(#e2e3ea, #343741);
-        --blue: #4262ff;
-        --yellow: #ffd02f;
-        --shadow: 0 10px 30px rgba(20, 25, 45, 0.12);
-      }
       * { box-sizing: border-box; }
+      html, body, #board { width: 100%; height: 100%; margin: 0; overflow: hidden; }
       body {
-        margin: 0;
-        height: 100vh;
-        overflow: hidden;
-        color: var(--text);
-        background: var(--bg);
-        font: 13px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+        min-height: 560px;
+        background: #f3f4f7;
+        font: 14px/1.4 Inter, ui-sans-serif, system-ui, sans-serif;
       }
-      button, input { font: inherit; }
-      .shell { display: grid; grid-template-rows: auto 1fr; height: 100%; }
-      header {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
-        border-bottom: 1px solid var(--line);
-        background: var(--panel);
+      #board {
+        display: block;
+        border: 0;
+        background: #fff;
       }
-      .logo {
-        display: grid; place-items: center; width: 28px; height: 28px;
-        border-radius: 8px; color: #101116; background: var(--yellow);
-        font-weight: 900; font-size: 16px;
+      #status {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        color: #656b7a;
+        text-align: center;
+        background: #f3f4f7;
+        z-index: 1;
       }
-      .title { min-width: 0; flex: 1; }
-      .title strong, .title span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .title span { color: var(--muted); font-size: 11px; }
-      .button {
-        border: 1px solid var(--line); background: var(--panel); color: var(--text);
-        border-radius: 7px; padding: 6px 10px; cursor: pointer; text-decoration: none;
-      }
-      .button.primary { border-color: var(--blue); background: var(--blue); color: white; }
-      main { display: grid; grid-template-columns: 220px minmax(0, 1fr) 250px; min-height: 0; }
-      aside { background: var(--panel); overflow: auto; padding: 12px; }
-      aside:first-child { border-right: 1px solid var(--line); }
-      aside:last-child { border-left: 1px solid var(--line); }
-      h2 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
-      .search { display: flex; gap: 6px; margin-bottom: 12px; }
-      input {
-        min-width: 0; width: 100%; border: 1px solid var(--line); background: var(--bg);
-        color: var(--text); border-radius: 7px; padding: 7px 8px;
-      }
-      .list { display: grid; gap: 6px; }
-      .list button {
-        text-align: left; border: 1px solid transparent; background: transparent; color: var(--text);
-        border-radius: 8px; padding: 8px; cursor: pointer;
-      }
-      .list button:hover, .list button.active { background: var(--bg); border-color: var(--line); }
-      .list small { display: block; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
-      .canvas-wrap {
-        overflow: hidden; position: relative;
-        background: radial-gradient(circle, var(--line) 1px, transparent 1px) 0 0 / 22px 22px;
-      }
-      #canvas { position: absolute; inset: 0; transform-origin: center; }
-      .item {
-        position: absolute; display: grid; place-items: center; overflow: hidden;
-        min-width: 80px; min-height: 42px; padding: 8px; border: 1px solid #8d91a0;
-        background: light-dark(#fff, #252832); border-radius: 5px; box-shadow: 0 2px 6px rgba(0,0,0,.08);
-        cursor: pointer; text-align: center; white-space: pre-wrap;
-      }
-      .item.frame { place-items: start; background: transparent; border: 2px solid #9da1ad; box-shadow: none; font-weight: 700; }
-      .item.sticky_note { background: #fff4a8; color: #242424; border-color: #e4d56d; }
-      .item.shape { border-radius: 12px; }
-      .item.selected { outline: 3px solid rgba(66,98,255,.45); border-color: var(--blue); z-index: 5; }
-      .empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); text-align: center; padding: 30px; }
-      .toolbar {
-        position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
-        display: flex; gap: 4px; padding: 5px; border: 1px solid var(--line);
-        border-radius: 9px; background: var(--panel); box-shadow: var(--shadow);
-      }
-      .toolbar button { border: 0; background: transparent; color: var(--text); border-radius: 5px; padding: 5px 9px; cursor: pointer; }
-      .toolbar button:hover { background: var(--bg); }
-      .property { margin: 0 0 12px; }
-      .property label { display: block; margin-bottom: 3px; color: var(--muted); font-size: 11px; text-transform: uppercase; }
-      .property div { overflow-wrap: anywhere; }
-      .badge { display: inline-block; border: 1px solid var(--line); border-radius: 99px; padding: 2px 7px; font-size: 11px; }
-      .warning { margin-top: 8px; padding: 8px; border-radius: 7px; background: light-dark(#fff8dc, #3b341c); color: light-dark(#705a00, #ffe48a); }
-      @media (max-width: 760px) {
-        main { grid-template-columns: 1fr; }
-        aside { display: none; }
-      }
+      #status.hidden { display: none; }
+      #status.error { color: #b42318; }
     </style>
   </head>
   <body>
-    <div class="shell">
-      <header>
-        <div class="logo">M</div>
-        <div class="title"><strong id="heading">Miro workspace</strong><span id="subtitle">Interactive board preview</span></div>
-        <button id="open" class="button primary" hidden>Open in Miro ↗</button>
-      </header>
-      <main>
-        <aside>
-          <h2>Boards</h2>
-          <form id="search" class="search">
-            <input id="query" placeholder="Search boards" aria-label="Search boards" />
-            <button class="button" type="submit">Go</button>
-          </form>
-          <div id="boards" class="list"></div>
-        </aside>
-        <section class="canvas-wrap">
-          <div id="canvas"></div>
-          <div id="empty" class="empty">Call <code>board_list_items</code> or <code>context_explore</code> to preview a board.</div>
-          <div class="toolbar">
-            <button id="minus" aria-label="Zoom out">−</button>
-            <button id="fit">Fit</button>
-            <button id="plus" aria-label="Zoom in">+</button>
-          </div>
-        </section>
-        <aside>
-          <h2>Inspector</h2>
-          <div id="inspector"><span style="color:var(--muted)">Select an item to inspect it.</span></div>
-          <div id="warnings"></div>
-        </aside>
-      </main>
-    </div>
+    <div id="status">Loading Miro board…</div>
+    <iframe
+      id="board"
+      title="Miro board"
+      allow="clipboard-read; clipboard-write; fullscreen"
+      allowfullscreen
+      referrerpolicy="no-referrer-when-downgrade"
+    ></iframe>
     <script type="module">
       import {
         App,
         PostMessageTransport,
       } from "https://esm.sh/@modelcontextprotocol/ext-apps@1.5.0";
 
-      let state = {};
-      let selected;
-      let scale = 1;
-      let refreshing = false;
+      const frame = document.getElementById("board");
+      const status = document.getElementById("status");
+      let currentUrl = "";
 
-      const el = (id) => document.getElementById(id);
-      const canvas = el("canvas");
-      const empty = el("empty");
+      function showBoard(data) {
+        if (!data?.embedUrl || data.embedUrl === currentUrl) return;
+        try {
+          const url = new URL(data.embedUrl);
+          if (
+            url.protocol !== "https:" ||
+            (url.hostname !== "miro.com" && !url.hostname.endsWith(".miro.com"))
+          ) {
+            throw new Error("Unexpected Miro embed origin.");
+          }
+          currentUrl = url.toString();
+          status.className = "";
+          status.textContent = "Loading Miro board…";
+          frame.src = currentUrl;
+        } catch (error) {
+          status.className = "error";
+          status.textContent =
+            error instanceof Error ? error.message : "Unable to load Miro board.";
+        }
+      }
+
+      frame.addEventListener("load", () => status.classList.add("hidden"));
+      frame.addEventListener("error", () => {
+        status.className = "error";
+        status.textContent = "Miro Live Embed could not be loaded.";
+      });
+
       const app = new App(
-        { name: "miro-mcp-app", version: "0.1.0" },
+        { name: "miro-live-embed", version: "0.2.0" },
         {},
         { autoResize: true, strict: true },
       );
-
-      async function callTool(name, args) {
-        const result = await app.callServerTool({ name, arguments: args });
-        if (result.isError) {
-          throw new Error(result.content?.find((item) => item.type === "text")?.text || "Tool call failed");
-        }
-        ingest(result.structuredContent || {});
-        return result;
-      }
-
-      async function openLink(url) {
-        if (!url) return;
-        await app.openLink({ url });
-      }
-
-      function text(item) {
-        const data = item?.data || {};
-        return String(data.content || data.title || data.description || item?.title || item?.type || "")
-          .replace(/<[^>]+>/g, "").slice(0, 300);
-      }
-
-      function ingest(value) {
-        if (!value || typeof value !== "object") return;
-        state = { ...state, ...value };
-        const board = state.board || {};
-        const url = state.boardUrl || board.viewLink;
-        el("heading").textContent = board.name || state.title || "Miro workspace";
-        el("subtitle").textContent = state.parity ? `${state.parity} capability` : "Interactive board preview";
-        el("open").hidden = !url;
-        el("open").onclick = () => openLink(url);
-        renderBoards(state.boards || []);
-        renderItems(state.items || state.nodes || []);
-        renderWarnings(state.warnings || []);
-      }
-
-      function renderBoards(boards) {
-        el("boards").innerHTML = "";
-        boards.forEach((board) => {
-          const button = document.createElement("button");
-          button.innerHTML = `<strong></strong><small></small>`;
-          button.querySelector("strong").textContent = board.name || "Untitled board";
-          button.querySelector("small").textContent = board.description || board.id || "";
-          button.onclick = () => {
-            const url = board.viewLink || `https://miro.com/app/board/${encodeURIComponent(board.id)}/`;
-            callTool("board_list_items", { board_url: url, limit: 50 });
-          };
-          el("boards").appendChild(button);
-        });
-      }
-
-      function renderItems(items) {
-        canvas.innerHTML = "";
-        empty.hidden = items.length > 0;
-        if (!items.length) return;
-        const xs = items.map((item) => Number(item.position?.x || 0));
-        const ys = items.map((item) => Number(item.position?.y || 0));
-        const minX = Math.min(...xs), minY = Math.min(...ys);
-        items.forEach((item, index) => {
-          const node = document.createElement("button");
-          node.className = `item ${item.type || ""}`;
-          node.textContent = text(item);
-          const width = Math.max(90, Math.min(440, Number(item.geometry?.width || 160)));
-          const height = Math.max(48, Math.min(320, Number(item.geometry?.height || 90)));
-          node.style.width = `${width}px`;
-          node.style.height = `${height}px`;
-          node.style.left = `${Number(item.position?.x || index * 190) - minX + 60}px`;
-          node.style.top = `${Number(item.position?.y || 0) - minY + 60}px`;
-          node.onclick = () => inspect(item, node);
-          canvas.appendChild(node);
-        });
-        fit();
-      }
-
-      function inspect(item, node) {
-        selected?.classList.remove("selected");
-        selected = node;
-        node.classList.add("selected");
-        const fields = [
-          ["Type", item.type], ["ID", item.id], ["Content", text(item)],
-          ["Position", `${item.position?.x ?? "—"}, ${item.position?.y ?? "—"}`],
-          ["Size", `${item.geometry?.width ?? "—"} × ${item.geometry?.height ?? "—"}`],
-        ];
-        el("inspector").innerHTML = fields.map(([label, value]) =>
-          `<div class="property"><label>${label}</label><div></div></div>`
-        ).join("");
-        [...el("inspector").querySelectorAll(".property div")].forEach((target, index) => {
-          target.textContent = String(fields[index][1] ?? "—");
-        });
-      }
-
-      function renderWarnings(warnings) {
-        el("warnings").innerHTML = warnings.map((warning) => {
-          const div = document.createElement("div");
-          div.className = "warning";
-          div.textContent = warning;
-          return div.outerHTML;
-        }).join("");
-      }
-
-      function fit() {
-        const wrap = canvas.parentElement.getBoundingClientRect();
-        const width = Math.max(canvas.scrollWidth, 1), height = Math.max(canvas.scrollHeight, 1);
-        scale = Math.min(1, (wrap.width - 40) / width, (wrap.height - 40) / height);
-        applyScale();
-      }
-      function applyScale() { canvas.style.transform = `scale(${scale})`; }
-      el("plus").onclick = () => { scale = Math.min(2, scale + .15); applyScale(); };
-      el("minus").onclick = () => { scale = Math.max(.2, scale - .15); applyScale(); };
-      el("fit").onclick = fit;
-      el("search").onsubmit = (event) => {
-        event.preventDefault();
-        callTool("board_search_boards", { query: el("query").value, limit: 20 });
-      };
-
-      app.ontoolresult = (result) => {
-        if (result.structuredContent) ingest(result.structuredContent);
-      };
+      app.ontoolresult = (result) => showBoard(result.structuredContent);
       await app.connect(new PostMessageTransport(window.parent, window.parent));
-      if (window.MIRO_DATA) ingest(window.MIRO_DATA);
-      setInterval(async () => {
-        if (refreshing || !state.boardUrl) return;
-        refreshing = true;
-        try {
-          await callTool("board_list_items", {
-            board_url: state.boardUrl,
-            parent_item_id: state.focusedItemId,
-            limit: 200,
-          });
-        } catch (error) {
-          console.warn("Board refresh failed", error);
-        } finally {
-          refreshing = false;
-        }
-      }, 4000);
+      showBoard(window.MIRO_DATA);
     </script>
   </body>
 </html>

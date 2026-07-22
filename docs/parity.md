@@ -45,7 +45,8 @@ operations through its public REST API. No private endpoint is used.
 - `code_explain_on_board` and `code_create_from_board` prompts
 - One additional `render_miro_board` tool backed by the interactive
   `ui://miro/workspace` resource. Parity tools never open separate UI cards;
-  the rendered iframe refreshes itself after board mutations.
+  it uses Miro's official `/api/v1/oembed` response to display one full-size
+  native Live Embed iframe.
 
 Exact official schema parity requires an authorized capture of `initialize`,
 `tools/list`, `prompts/list`, and representative results from

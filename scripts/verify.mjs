@@ -73,14 +73,22 @@ const { resources } = await client.listResources();
 check("registers interactive Miro workspace", resources.some((resource) => resource.uri === "ui://miro/workspace"));
 const resource = await client.readResource({ uri: "ui://miro/workspace" });
 const html = resource.contents[0]?.text ?? "";
-check("workspace contains board search and canvas", html.includes("board_search_boards") && html.includes('id="canvas"'));
+check(
+  "workspace is one uncluttered Miro iframe",
+  html.includes('id="board"') &&
+    html.includes("data.embedUrl") &&
+    !html.includes('id="canvas"') &&
+    !html.includes("<aside"),
+);
 check(
   "workspace completes the MCP App handshake",
   html.includes("PostMessageTransport") &&
-    html.includes("await app.connect") &&
-    html.includes("app.callServerTool"),
+    html.includes("await app.connect"),
 );
-check("workspace refreshes one canvas after mutations", html.includes('callTool("board_list_items"'));
+check(
+  "workspace does not poll or reconstruct board items",
+  !html.includes("board_list_items") && !html.includes("setInterval"),
+);
 
 const layout = await client.callTool({ name: "layout_get_dsl", arguments: {} });
 check("layout DSL is runtime discoverable", layout.content?.[0]?.text?.includes("Miro Layout DSL v1"));
