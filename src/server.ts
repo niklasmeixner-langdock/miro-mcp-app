@@ -70,6 +70,7 @@ function extractMiroEmbedUrl(html: string): string {
   url.searchParams.set("autoplay", "true");
   url.searchParams.set("embedAutoplay", "true");
   url.searchParams.set("embedMode", "view_only_without_ui");
+  url.searchParams.set("usePostAuth", "true");
   return url.toString();
 }
 
