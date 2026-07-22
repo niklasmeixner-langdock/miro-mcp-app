@@ -68,6 +68,8 @@ function extractMiroEmbedUrl(html: string): string {
     throw new Error("Miro oEmbed returned an unexpected iframe origin.");
   }
   url.searchParams.set("autoplay", "true");
+  url.searchParams.set("embedAutoplay", "true");
+  url.searchParams.set("embedMode", "view_only_without_ui");
   return url.toString();
 }
 
